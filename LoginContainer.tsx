@@ -19,11 +19,50 @@ interface Values {
     password: string;
 }
 
+const CyberClock = () => {
+    const [time, setTime] = useState(new Date().toTimeString().slice(0, 8));
+    useEffect(() => {
+        const interval = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
+        return () => clearInterval(interval);
+    }, []);
+    return <span>{time}</span>;
+};
+
+const ParticleField = () => {
+    const particles = Array.from({ length: 25 }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        duration: Math.random() * 20 + 12,
+        delay: Math.random() * 20,
+        dx: (Math.random() - 0.5) * 150,
+        size: Math.random() * 2 + 1,
+    }));
+    return (
+        <>
+            {particles.map(p => (
+                <div
+                    key={p.id}
+                    className="kd-particle"
+                    style={{
+                        left: `${p.left}vw`,
+                        width: `${p.size}px`,
+                        height: `${p.size}px`,
+                        animationDuration: `${p.duration}s`,
+                        animationDelay: `-${p.delay}s`,
+                        ['--dx' as any]: `${p.dx}px`,
+                    }}
+                />
+            ))}
+        </>
+    );
+};
+
 const LoginContainer = ({ history }: RouteComponentProps) => {
     const { t } = useTranslation('auth');
     const ref = useRef<Reaptcha>(null);
     const [token, setToken] = useState('');
     const [show, setShow] = useState(false);
+    const [imgLoaded, setImgLoaded] = useState(false);
     const { clearFlashes, clearAndAddHttpError } = useFlash();
     const { provider, recaptcha, turnstile } = useStoreState((state) => state.settings.data!.captcha);
 
@@ -65,218 +104,306 @@ const LoginContainer = ({ history }: RouteComponentProps) => {
 
     return (
         <>
-            {/* Inject global styles */}
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+                *, *::before, *::after { box-sizing: border-box; }
 
                 body {
-                    background: #010208 !important;
-                    font-family: 'Rajdhani', sans-serif !important;
+                    background: #080808 !important;
+                    font-family: 'DM Sans', sans-serif !important;
+                    min-height: 100vh;
                 }
 
-                .cyber-bg-grid {
+                body::after {
+                    content: '';
                     position: fixed;
                     inset: 0;
-                    background-image:
-                        linear-gradient(rgba(0,245,255,0.04) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(0,245,255,0.04) 1px, transparent 1px);
-                    background-size: 50px 50px;
-                    animation: gridShift 20s linear infinite;
-                    z-index: 0;
+                    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.75) 100%);
                     pointer-events: none;
+                    z-index: 0;
                 }
-                @keyframes gridShift { from { transform: translate(0,0); } to { transform: translate(50px,50px); } }
 
-                .cyber-blob {
+                .kd-orb {
                     position: fixed;
                     border-radius: 50%;
-                    filter: blur(80px);
+                    pointer-events: none;
                     z-index: 0;
-                    pointer-events: none;
+                    animation: orbFloat ease-in-out infinite alternate;
                 }
-                .cyber-blob-1 { width:500px; height:500px; background: radial-gradient(circle, rgba(0,128,255,0.18), transparent 70%); top:-150px; left:-150px; }
-                .cyber-blob-2 { width:400px; height:400px; background: radial-gradient(circle, rgba(124,58,237,0.18), transparent 70%); bottom:-100px; right:-100px; }
+                .kd-orb-1 {
+                    width: 600px; height: 600px;
+                    background: radial-gradient(circle, rgba(255,255,255,0.025) 0%, transparent 70%);
+                    top: -200px; left: -200px;
+                    animation-duration: 12s;
+                }
+                .kd-orb-2 {
+                    width: 400px; height: 400px;
+                    background: radial-gradient(circle, rgba(180,180,180,0.03) 0%, transparent 70%);
+                    bottom: -100px; right: -100px;
+                    animation-duration: 9s;
+                    animation-delay: -4s;
+                }
+                @keyframes orbFloat {
+                    from { transform: scale(1) translate(0,0); }
+                    to   { transform: scale(1.15) translate(20px,-20px); }
+                }
 
-                .cyber-scanlines {
+                .kd-particle {
                     position: fixed;
-                    inset: 0;
-                    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+                    background: rgba(255,255,255,0.35);
+                    border-radius: 50%;
                     pointer-events: none;
-                    z-index: 1;
+                    z-index: 0;
+                    animation: particleRise linear infinite;
+                    opacity: 0;
+                }
+                @keyframes particleRise {
+                    0%   { transform: translateY(100vh) translateX(0); opacity: 0; }
+                    10%  { opacity: 0.5; }
+                    90%  { opacity: 0.5; }
+                    100% { transform: translateY(-100px) translateX(var(--dx)); opacity: 0; }
                 }
 
-                .cyber-hud {
-                    position: fixed;
-                    z-index: 8;
-                    font-family: 'Orbitron', sans-serif;
-                    font-size: 9px;
-                    letter-spacing: 2px;
-                    color: rgba(0,245,255,0.2);
-                    pointer-events: none;
-                }
-
-                .cyber-card {
+                .kd-card {
                     position: relative;
                     z-index: 10;
                     width: 100%;
-                    max-width: 420px;
-                    padding: 44px 40px;
-                    background: rgba(5,15,40,0.85);
-                    border: 1px solid rgba(0,245,255,0.15);
-                    border-radius: 16px;
-                    backdrop-filter: blur(24px);
-                    box-shadow: 0 0 0 1px rgba(0,245,255,0.06), 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
-                    animation: cardIn 0.8s cubic-bezier(0.22,1,0.36,1) both;
+                    max-width: 400px;
+                    padding: 40px 36px 36px;
+                    background: rgba(12, 12, 12, 0.94);
+                    border: 1px solid rgba(255,255,255,0.07);
+                    border-radius: 20px;
+                    backdrop-filter: blur(32px);
+                    box-shadow:
+                        0 0 0 1px rgba(255,255,255,0.03),
+                        0 40px 100px rgba(0,0,0,0.8),
+                        inset 0 1px 0 rgba(255,255,255,0.06);
+                    animation: cardReveal 0.9s cubic-bezier(0.16,1,0.3,1) both;
                 }
-                @keyframes cardIn { from { opacity:0; transform:translateY(30px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
-
-                .cyber-card::before, .cyber-card::after {
+                @keyframes cardReveal {
+                    from { opacity:0; transform:translateY(40px) scale(0.96); }
+                    to   { opacity:1; transform:translateY(0) scale(1); }
+                }
+                .kd-card::before {
                     content: '';
                     position: absolute;
-                    width: 18px; height: 18px;
-                    border-color: #00f5ff;
-                    border-style: solid;
-                    opacity: 0.5;
+                    top: 0; left: 20%; right: 20%;
+                    height: 1px;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
                 }
-                .cyber-card::before { top:-1px; left:-1px; border-width:2px 0 0 2px; border-radius:16px 0 0 0; }
-                .cyber-card::after  { bottom:-1px; right:-1px; border-width:0 2px 2px 0; border-radius:0 0 16px 0; }
 
-                .cyber-logo-icon {
-                    display: inline-flex;
+                .kd-logo-wrap {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    margin-bottom: 28px;
+                }
+                .kd-logo-img-wrap {
+                    position: relative;
+                    width: 90px; height: 90px;
+                    margin-bottom: 16px;
+                    display: flex;
                     align-items: center;
                     justify-content: center;
-                    width: 64px; height: 64px;
-                    background: linear-gradient(135deg, rgba(0,245,255,0.15), rgba(0,128,255,0.15));
-                    border: 1px solid rgba(0,245,255,0.3);
-                    border-radius: 16px;
-                    margin-bottom: 14px;
-                    box-shadow: 0 0 24px rgba(0,245,255,0.15);
+                }
+                .kd-ring {
+                    position: absolute;
+                    inset: -8px;
+                    border-radius: 50%;
+                    border: 1px solid rgba(255,255,255,0.08);
+                    animation: spin 9s linear infinite;
+                }
+                .kd-ring::after {
+                    content: '';
+                    position: absolute;
+                    top: -3px; left: 50%;
+                    width: 5px; height: 5px;
+                    background: rgba(255,255,255,0.6);
+                    border-radius: 50%;
+                    transform: translateX(-50%);
+                    box-shadow: 0 0 8px rgba(255,255,255,0.6);
+                }
+                .kd-ring-2 {
+                    position: absolute;
+                    inset: -18px;
+                    border-radius: 50%;
+                    border: 1px solid rgba(255,255,255,0.03);
+                    animation: spin 16s linear infinite reverse;
+                }
+                @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+                .kd-logo-img {
+                    width: 90px; height: 90px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    border: 2px solid rgba(255,255,255,0.1);
+                    box-shadow: 0 0 40px rgba(255,255,255,0.07), 0 10px 40px rgba(0,0,0,0.6);
+                    opacity: 0;
+                    transition: opacity 0.7s ease;
+                    position: relative;
+                    z-index: 1;
+                    animation: logoPulse 4s ease-in-out infinite alternate;
+                }
+                .kd-logo-img.loaded { opacity: 1; }
+                @keyframes logoPulse {
+                    from { box-shadow: 0 0 30px rgba(255,255,255,0.06), 0 10px 40px rgba(0,0,0,0.6); }
+                    to   { box-shadow: 0 0 50px rgba(255,255,255,0.12), 0 10px 40px rgba(0,0,0,0.6); }
                 }
 
-                .cyber-title {
-                    font-family: 'Orbitron', sans-serif !important;
-                    font-size: 22px !important;
-                    font-weight: 900 !important;
-                    letter-spacing: 3px !important;
+                .kd-logo-glow {
+                    position: absolute;
+                    bottom: -8px; left: 50%;
+                    transform: translateX(-50%);
+                    width: 70px; height: 20px;
+                    background: rgba(255,255,255,0.07);
+                    filter: blur(12px);
+                    border-radius: 50%;
+                }
+
+                .kd-name {
+                    font-family: 'Syne', sans-serif;
+                    font-size: 20px;
+                    font-weight: 800;
+                    letter-spacing: 0.5px;
+                    color: #ffffff;
+                    margin-bottom: 4px;
+                    text-align: center;
+                }
+                .kd-sub {
+                    font-size: 10px;
+                    letter-spacing: 3px;
+                    color: rgba(255,255,255,0.22);
+                    text-transform: uppercase;
+                    text-align: center;
+                }
+
+                .kd-divider {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin: 0 0 24px;
+                }
+                .kd-divider-line { flex:1; height:1px; background: rgba(255,255,255,0.06); }
+                .kd-divider-dot { width:3px; height:3px; background:rgba(255,255,255,0.18); border-radius:50%; }
+
+                .kd-card input[type=text],
+                .kd-card input[type=email],
+                .kd-card input[type=password] {
+                    background: rgba(255,255,255,0.04) !important;
+                    border: 1px solid rgba(255,255,255,0.08) !important;
+                    border-radius: 10px !important;
+                    color: #e8e8e8 !important;
+                    font-family: 'DM Sans', sans-serif !important;
+                    font-size: 14px !important;
+                    transition: all 0.25s !important;
+                }
+                .kd-card input:focus {
+                    border-color: rgba(255,255,255,0.2) !important;
+                    background: rgba(255,255,255,0.06) !important;
+                    box-shadow: 0 0 0 3px rgba(255,255,255,0.04) !important;
+                    outline: none !important;
+                }
+                .kd-card input::placeholder { color: rgba(255,255,255,0.18) !important; }
+                .kd-card label {
+                    color: rgba(255,255,255,0.3) !important;
+                    font-size: 11px !important;
+                    letter-spacing: 1.5px !important;
                     text-transform: uppercase !important;
-                    background: linear-gradient(90deg, #00f5ff, #0080ff) !important;
-                    -webkit-background-clip: text !important;
-                    -webkit-text-fill-color: transparent !important;
-                    background-clip: text !important;
-                    line-height: 1 !important;
-                    margin-bottom: 4px !important;
+                    font-family: 'DM Sans', sans-serif !important;
+                    font-weight: 500 !important;
                 }
+                .kd-card button[type=submit] {
+                    background: rgba(255,255,255,0.92) !important;
+                    border: none !important;
+                    border-radius: 10px !important;
+                    color: #0a0a0a !important;
+                    font-family: 'Syne', sans-serif !important;
+                    font-weight: 700 !important;
+                    font-size: 13px !important;
+                    letter-spacing: 2px !important;
+                    text-transform: uppercase !important;
+                    transition: all 0.25s !important;
+                    box-shadow: 0 4px 20px rgba(255,255,255,0.08) !important;
+                }
+                .kd-card button[type=submit]:hover {
+                    background: #ffffff !important;
+                    transform: translateY(-1px) !important;
+                    box-shadow: 0 8px 30px rgba(255,255,255,0.15) !important;
+                }
+                .kd-card button[type=submit]:disabled { opacity: 0.4 !important; transform: none !important; }
+                .kd-card a {
+                    color: rgba(255,255,255,0.28) !important;
+                    font-size: 12px !important;
+                    text-decoration: none !important;
+                    transition: color 0.2s !important;
+                }
+                .kd-card a:hover { color: rgba(255,255,255,0.65) !important; }
 
-                .cyber-sub {
-                    font-size: 11px;
-                    letter-spacing: 4px;
-                    color: rgba(0,245,255,0.4);
+                .kd-status {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 7px;
+                    margin-top: 22px;
+                    padding-top: 18px;
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                }
+                .kd-dot {
+                    width: 6px; height: 6px;
+                    background: #4ade80;
+                    border-radius: 50%;
+                    box-shadow: 0 0 8px #4ade80;
+                    animation: dotBlink 2.5s ease-in-out infinite;
+                }
+                @keyframes dotBlink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+                .kd-status-text {
+                    font-size: 10px;
+                    letter-spacing: 2px;
+                    color: rgba(255,255,255,0.18);
                     text-transform: uppercase;
                 }
 
-                .cyber-divider {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    margin: 24px 0;
-                }
-                .cyber-divider-line { flex:1; height:1px; background: rgba(0,245,255,0.15); }
-                .cyber-divider-text { font-size:10px; letter-spacing:3px; color:rgba(0,245,255,0.3); text-transform:uppercase; }
-
-                .cyber-status {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                    margin-top: 24px;
-                }
-                .cyber-dot {
-                    width: 7px; height: 7px;
-                    background: #00ff88;
-                    border-radius: 50%;
-                    box-shadow: 0 0 10px #00ff88;
-                    animation: blink 2s ease-in-out infinite;
-                }
-                @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-                .cyber-status-text { font-size:11px; letter-spacing:2px; color:rgba(0,255,136,0.6); text-transform:uppercase; }
-
-                /* Override field/button styles */
-                .cyber-card input {
-                    background: rgba(0,245,255,0.04) !important;
-                    border-color: rgba(0,245,255,0.15) !important;
-                    color: #e0f7ff !important;
-                    font-family: 'Rajdhani', sans-serif !important;
-                }
-                .cyber-card input:focus {
-                    border-color: rgba(0,245,255,0.5) !important;
-                    box-shadow: 0 0 0 3px rgba(0,245,255,0.08) !important;
-                    background: rgba(0,245,255,0.07) !important;
-                }
-                .cyber-card label {
-                    color: rgba(0,245,255,0.5) !important;
-                    font-size: 11px !important;
-                    letter-spacing: 2px !important;
-                    text-transform: uppercase !important;
-                    font-family: 'Rajdhani', sans-serif !important;
-                }
-                .cyber-card button[type=submit] {
-                    background: linear-gradient(135deg, rgba(0,128,255,0.8), rgba(0,245,255,0.6)) !important;
-                    border: 1px solid rgba(0,245,255,0.4) !important;
-                    font-family: 'Orbitron', sans-serif !important;
-                    letter-spacing: 3px !important;
-                    text-transform: uppercase !important;
-                    font-size: 13px !important;
-                    box-shadow: 0 4px 20px rgba(0,128,255,0.3) !important;
-                    transition: all 0.3s !important;
-                }
-                .cyber-card button[type=submit]:hover {
-                    transform: translateY(-2px) !important;
-                    box-shadow: 0 8px 30px rgba(0,128,255,0.5) !important;
-                }
-                .cyber-card a {
-                    color: rgba(0,245,255,0.4) !important;
-                    font-size: 12px !important;
-                    letter-spacing: 1px !important;
-                }
-                .cyber-card a:hover {
-                    color: #00f5ff !important;
+                .kd-hud {
+                    position: fixed;
+                    font-family: 'DM Sans', monospace;
+                    font-size: 9px;
+                    letter-spacing: 1.5px;
+                    color: rgba(255,255,255,0.1);
+                    pointer-events: none;
+                    z-index: 5;
+                    text-transform: uppercase;
                 }
             `}</style>
 
-            {/* Background effects */}
-            <div className="cyber-bg-grid" />
-            <div className="cyber-blob cyber-blob-1" />
-            <div className="cyber-blob cyber-blob-2" />
-            <div className="cyber-scanlines" />
+            <div className="kd-orb kd-orb-1" />
+            <div className="kd-orb kd-orb-2" />
+            <ParticleField />
 
-            {/* HUD corners */}
-            <div className="cyber-hud" style={{ top: 20, left: 20 }}>
-                SYS://PTERODACTYL<br />
-                <CyberClock />
-            </div>
-            <div className="cyber-hud" style={{ bottom: 20, right: 20, textAlign: 'right' }}>
-                BUILD v1.11.9<br />AUTH MODULE
-            </div>
+            <div className="kd-hud" style={{ top: 16, left: 16 }}>Kang Daffa Panel<br /><CyberClock /></div>
+            <div className="kd-hud" style={{ bottom: 16, right: 16, textAlign: 'right' }}>Auth v2.0<br />Online</div>
 
-            {/* Card */}
-            <div className="cyber-card">
-                {/* Logo */}
-                <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                    <div className="cyber-logo-icon">
-                        <svg width="32" height="32" viewBox="0 0 32 32" fill="#00f5ff" style={{ filter: 'drop-shadow(0 0 8px rgba(0,245,255,0.7))' }}>
-                            <path d="M16 3 C10 3, 4 8, 3 14 L8 12 C9 9, 12 7, 16 7 C20 7, 23 9, 24 12 L29 14 C28 8, 22 3, 16 3 Z"/>
-                            <path d="M3 14 L8 12 L10 20 L16 29 L22 20 L24 12 L29 14 L24 22 C22 26, 19 29, 16 29 C13 29, 10 26, 8 22 Z"/>
-                            <circle cx="16" cy="11" r="2"/>
-                        </svg>
+            <div className="kd-card">
+                <div className="kd-logo-wrap">
+                    <div className="kd-logo-img-wrap">
+                        <div className="kd-ring-2" />
+                        <div className="kd-ring" />
+                        <img
+                            src="https://files.catbox.moe/7fwwwe.png"
+                            className={`kd-logo-img${imgLoaded ? ' loaded' : ''}`}
+                            onLoad={() => setImgLoaded(true)}
+                            alt="Kang Daffa"
+                        />
+                        <div className="kd-logo-glow" />
                     </div>
-                    <div className="cyber-title">Pterodactyl</div>
-                    <div className="cyber-sub">Game Panel</div>
+                    <div className="kd-name">Kang Daffa Panel</div>
+                    <div className="kd-sub">Game Server Control</div>
                 </div>
 
-                <div className="cyber-divider">
-                    <div className="cyber-divider-line" />
-                    <div className="cyber-divider-text">Authenticate</div>
-                    <div className="cyber-divider-line" />
+                <div className="kd-divider">
+                    <div className="kd-divider-line" />
+                    <div className="kd-divider-dot" />
+                    <div className="kd-divider-line" />
                 </div>
 
                 <Formik
@@ -297,7 +424,7 @@ const LoginContainer = ({ history }: RouteComponentProps) => {
                                 name={'username'}
                                 disabled={isSubmitting}
                             />
-                            <div style={{ marginTop: 12 }}>
+                            <div style={{ marginTop: 14 }}>
                                 <Label>{t('password-label')}</Label>
                                 <div style={{ position: 'relative' }}>
                                     <Field
@@ -309,16 +436,17 @@ const LoginContainer = ({ history }: RouteComponentProps) => {
                                     />
                                     <button
                                         type={'button'}
-                                        style={{ position: 'absolute', top: 10, right: 6, padding: '4px', background: 'transparent', border: 'none', color: 'rgba(0,245,255,0.4)', cursor: 'pointer' }}
+                                        style={{ position:'absolute', top:10, right:8, padding:'4px', background:'transparent', border:'none', color:'rgba(255,255,255,0.25)', cursor:'pointer' }}
                                         onClick={() => setShow(!show)}
                                     >
                                         {show ? <EyeOffIcon className='h-5 w-5' /> : <EyeIcon className='h-5 w-5' />}
                                     </button>
                                 </div>
                             </div>
-                            <div style={{ marginTop: 24 }}>
-                                <Button style={{ width: '100%', padding: '14px' }} type={'submit'} disabled={isSubmitting}>
-                                    {t('login-button')}
+
+                            <div style={{ marginTop: 22 }}>
+                                <Button style={{ width:'100%', padding:'13px' }} type={'submit'} disabled={isSubmitting}>
+                                    {isSubmitting ? 'Authenticating...' : t('login-button')}
                                 </Button>
                             </div>
 
@@ -332,7 +460,7 @@ const LoginContainer = ({ history }: RouteComponentProps) => {
                                 />
                             )}
                             {provider === 'turnstile' && (
-                                <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+                                <div style={{ marginTop:14, display:'flex', justifyContent:'center' }}>
                                     <Turnstile
                                         siteKey={turnstile.siteKey}
                                         onVerify={(response) => setToken(response)}
@@ -341,32 +469,20 @@ const LoginContainer = ({ history }: RouteComponentProps) => {
                                 </div>
                             )}
 
-                            <div style={{ marginTop: 12, textAlign: 'center' }}>
-                                <Link to={'/auth/password'}>
-                                    {t('forgot-password.label')}
-                                </Link>
+                            <div style={{ marginTop:14, textAlign:'center' }}>
+                                <Link to={'/auth/password'}>{t('forgot-password.label')}</Link>
                             </div>
                         </LoginFormContainer>
                     )}
                 </Formik>
 
-                <div className="cyber-status">
-                    <div className="cyber-dot" />
-                    <div className="cyber-status-text">Server Online</div>
+                <div className="kd-status">
+                    <div className="kd-dot" />
+                    <div className="kd-status-text">All Systems Online</div>
                 </div>
             </div>
         </>
     );
-};
-
-// Live clock component
-const CyberClock = () => {
-    const [time, setTime] = useState(new Date().toTimeString().slice(0, 8));
-    useEffect(() => {
-        const interval = setInterval(() => setTime(new Date().toTimeString().slice(0, 8)), 1000);
-        return () => clearInterval(interval);
-    }, []);
-    return <span>{time}</span>;
 };
 
 export default LoginContainer;
